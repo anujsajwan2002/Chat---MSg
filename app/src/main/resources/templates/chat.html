@@ -66,6 +66,19 @@
           text-align: left;
         }
 
+        .message-image {
+          max-width: 100%;
+          max-height: 200px;
+          border-radius: 8px;
+          margin-top: 0.5rem;
+          cursor: pointer;
+          transition: transform 0.2s ease;
+        }
+
+        .message-image:hover {
+          transform: scale(1.05);
+        }
+
         .chat-footer {
           padding: 1rem;
           background-color: #f8f9fa;
@@ -75,6 +88,17 @@
 
         .btn-send {
           border-radius: 12px;
+        }
+
+        .btn-image {
+          border-radius: 12px;
+          background-color: #28a745;
+          border-color: #28a745;
+        }
+
+        .btn-image:hover {
+          background-color: #218838;
+          border-color: #1e7e34;
         }
 
         input.form-control {
@@ -94,6 +118,47 @@
           font-size: 0.75rem;
           color: #6c757d;
           margin-top: 0.25rem;
+        }
+
+        .image-preview {
+          max-width: 100px;
+          max-height: 100px;
+          border-radius: 8px;
+          margin-top: 0.5rem;
+          border: 2px solid #dee2e6;
+        }
+
+        .image-preview-container {
+          position: relative;
+          display: inline-block;
+        }
+
+        .remove-image {
+          position: absolute;
+          top: -5px;
+          right: -5px;
+          background: #dc3545;
+          color: white;
+          border: none;
+          border-radius: 50%;
+          width: 20px;
+          height: 20px;
+          font-size: 12px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .hidden {
+          display: none;
+        }
+
+        /* Modal styles for full-size image view */
+        .modal-content img {
+          max-width: 100%;
+          max-height: 80vh;
+          object-fit: contain;
         }
     </style>
 </head>
@@ -117,6 +182,14 @@
                 />
             </div>
 
+            <!-- Image preview container -->
+            <div id="imagePreviewContainer" class="mb-3 hidden">
+                <div class="image-preview-container">
+                    <img id="imagePreview" class="image-preview" alt="Preview">
+                    <button id="removeImage" class="remove-image">×</button>
+                </div>
+            </div>
+
             <div class="input-group">
                 <input
                         id="messageInput"
@@ -124,20 +197,46 @@
                         class="form-control"
                         placeholder="Type a message..."
                 />
+                <button id="imageButton" class="btn btn-success btn-image ms-2">
+                    📷
+                </button>
                 <button id="sendMessage" class="btn btn-primary btn-send ms-2">
                     Send 🚀
                 </button>
+            </div>
+
+            <!-- Hidden file input -->
+            <input type="file" id="imageInput" accept="image/*" class="hidden">
+        </div>
+    </div>
+</div>
+
+<!-- Modal for full-size image view -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">Image</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" alt="Full size image">
             </div>
         </div>
     </div>
 </div>
 
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
     let stompClient = null;
     let currentUser = '';
+    let selectedImage = null;
 
     function setConnected(connected) {
       document.getElementById("sendMessage").disabled = !connected;
+      document.getElementById("imageButton").disabled = !connected;
     }
 
     function connect() {
@@ -168,32 +267,152 @@
       const isOwnMessage = message.sender === currentUser;
       messageElement.className = `message ${isOwnMessage ? 'own' : 'other'}`;
 
-      messageElement.innerHTML = `
-        <div><strong>${message.sender}</strong>: ${message.content}</div>
-        <div class="timestamp">${timeString}</div>
-      `;
+      let messageContent = `<div><strong>${message.sender}</strong>:`;
+
+      if (message.content) {
+        messageContent += ` ${message.content}`;
+      }
+
+      messageContent += `</div>`;
+
+      // Add image if present
+      if (message.imageUrl) {
+        messageContent += `<img src="${message.imageUrl}" class="message-image" alt="Shared image" onclick="showFullImage('${message.imageUrl}')">`;
+      }
+
+      messageContent += `<div class="timestamp">${timeString}</div>`;
+
+      messageElement.innerHTML = messageContent;
 
       chat.appendChild(messageElement);
       chat.scrollTop = chat.scrollHeight;
     }
 
-    function sendMessage() {
+    function showFullImage(imageSrc) {
+      document.getElementById('modalImage').src = imageSrc;
+      const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+      imageModal.show();
+    }
+
+    async function sendMessage() {
       const sender = document.getElementById("senderInput").value.trim();
       const content = document.getElementById("messageInput").value.trim();
 
-      if (!sender || !content) {
-        alert("Both name and message are required!");
+      if (!sender) {
+        alert("Name is required!");
+        return;
+      }
+
+      if (!content && !selectedImage) {
+        alert("Please enter a message or select an image!");
         return;
       }
 
       currentUser = sender; // Save the current user's name
 
-      const chatMessage = { sender, content };
+      let imageUrl = null;
+
+      // Upload image first if one is selected
+      if (selectedImage) {
+        try {
+          imageUrl = await uploadImage(selectedImage);
+        } catch (error) {
+          alert("Failed to upload image: " + error.message);
+          return;
+        }
+      }
+
+      const chatMessage = {
+        sender,
+        content: content || '',
+        imageUrl: imageUrl
+      };
+
       stompClient.send("/app/sendMessages", {}, JSON.stringify(chatMessage));
       document.getElementById("messageInput").value = "";
+
+      // Clear image preview
+      clearImagePreview();
     }
 
+    async function uploadImage(file) {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch('/api/images/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const imageUrl = await response.text();
+      return imageUrl;
+    }
+
+    function handleImageSelect() {
+      const input = document.getElementById('imageInput');
+      const file = input.files[0];
+
+      if (file) {
+        // Check file size (limit to 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert('Image size should be less than 5MB');
+          return;
+        }
+
+        // Check if it's an image
+        if (!file.type.startsWith('image/')) {
+          alert('Please select an image file');
+          return;
+        }
+
+        // Store the actual file object instead of base64
+        selectedImage = file;
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          showImagePreview(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function showImagePreview(imageSrc) {
+      const previewContainer = document.getElementById('imagePreviewContainer');
+      const previewImage = document.getElementById('imagePreview');
+
+      previewImage.src = imageSrc;
+      previewContainer.classList.remove('hidden');
+    }
+
+    function clearImagePreview() {
+      const previewContainer = document.getElementById('imagePreviewContainer');
+      const imageInput = document.getElementById('imageInput');
+
+      previewContainer.classList.add('hidden');
+      imageInput.value = '';
+      selectedImage = null;
+    }
+
+    // Event listeners
     document.getElementById("sendMessage").onclick = sendMessage;
+    document.getElementById("imageButton").onclick = function() {
+      document.getElementById('imageInput').click();
+    };
+    document.getElementById("imageInput").onchange = handleImageSelect;
+    document.getElementById("removeImage").onclick = clearImagePreview;
+
+    // Allow sending message with Enter key
+    document.getElementById("messageInput").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        sendMessage();
+      }
+    });
+
     window.onload = connect;
 </script>
 </body>
