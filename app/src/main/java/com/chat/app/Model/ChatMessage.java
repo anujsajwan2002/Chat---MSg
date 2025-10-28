@@ -3,17 +3,19 @@ package com.chat.app.Model;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.awt.*;
 
 @NoArgsConstructor
+@Document(collection = "messages")
 @Data
 public class ChatMessage {
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -48,13 +50,14 @@ public class ChatMessage {
         this.type = type;
     }
 
-    private Long id;
+    @Id
+    private String id;
     private String sender;
     private String content;
     private String imageUrl;
     private MessageType type;
 
-    public ChatMessage(Long id, String sender, String content, String imageUrl, MessageType type) {
+    public ChatMessage(String id, String sender, String content, String imageUrl, MessageType type) {
         this.id = id;
         this.sender = sender;
         this.content = content;
