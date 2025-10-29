@@ -1,16 +1,27 @@
 package com.chat.app.Model;
 
-
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 
-@NoArgsConstructor
-@Document(collection = "messages")
 @Data
+@Document(collection = "messages")
+@NoArgsConstructor
+@AllArgsConstructor
 public class ChatMessage {
+
+    @Id
+    private String id;
+
+    private String sender;
+    private String content;      // For text messages
+    private String imageUrl;     // For image messages
+    private MessageType type;    // CHAT or IMAGE
+
     public String getId() {
         return id;
     }
@@ -34,6 +45,7 @@ public class ChatMessage {
     public void setContent(String content) {
         this.content = content;
     }
+
     public String getImageUrl() {
         return imageUrl;
     }
@@ -50,23 +62,26 @@ public class ChatMessage {
         this.type = type;
     }
 
-    @Id
-    private String id;
-    private String sender;
-    private String content;
-    private String imageUrl;
-    private MessageType type;
-
-    public ChatMessage(String id, String sender, String content, String imageUrl, MessageType type) {
-        this.id = id;
-        this.sender = sender;
-        this.content = content;
-        this.imageUrl = imageUrl;
-        this.type = type;
+    public String getRoomId() {
+        return roomId;
     }
 
+    public void setRoomId(String roomId) {
+        this.roomId = roomId;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    private String roomId;
+    private long timestamp;      // ⏰ Added field for ordering/display
+
     public enum MessageType {
-        CHAT,
-        IMAGE
+        CHAT, IMAGE
     }
 }
