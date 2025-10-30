@@ -1,87 +1,77 @@
 package com.chat.app.Controller;
 
-import com.chat.app.Model.Image;
-import com.chat.app.Repository.ImageRepository;
+import com.chat.app.Model.ChatMessage;
+import com.chat.app.Repository.ChatMessageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/images")
-@CrossOrigin(origins = "*")
+@RequestMapping("/api")
 public class ImageUploadController {
 
+    private static final String UPLOAD_DIR = "uploads/";
+
     @Autowired
-    private ImageRepository imageRepository;
+    private ChatMessageRepository messageRepository;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     @PostMapping("/upload")
-    public ResponseEntity<String> uploadImage(@RequestParam("image") MultipartFile file) {
+    public ResponseEntity<?> uploadImage(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("sender") String sender,
+            @RequestParam("roomId") String roomId) {
+
         try {
-            // Validate file
-            if (file.isEmpty()) {
-                return ResponseEntity.badRequest().body("No file selected");
+            // 1️⃣ Ensure upload directory exists
+            File uploadDir = new File(UPLOAD_DIR);
+            if (!uploadDir.exists()) {
+                uploadDir.mkdirs();
             }
 
-            // Check file type
-            String contentType = file.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                return ResponseEntity.badRequest().body("File must be an image");
-            }
+            // 2️⃣ Generate unique file name
+            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+            Path filePath = Paths.get(UPLOAD_DIR, fileName);
 
-            // Check file size (limit to 16MB - MongoDB document limit)
-            if (file.getSize() > 16 * 1024 * 1024) {
-                return ResponseEntity.badRequest().body("File size must be less than 16MB");
-            }
+            // 3️⃣ Save image file locally
+            Files.copy(file.getInputStream(), filePath);
 
-            // Create image entity
-            Image image = new Image(
-                    null,
-                    file.getOriginalFilename(),
-                    contentType,
-                    file.getBytes(),
-                    file.getSize(),
-                    LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            );
+            // 4️⃣ Create public URL
+            String imageUrl = "/images/" + fileName;
 
-            // Save to MongoDB
-            Image savedImage = imageRepository.save(image);
+            // 5️⃣ Build and save ChatMessage
+            ChatMessage message = new ChatMessage();
+            message.setSender(sender);
+            message.setImageUrl(imageUrl);
+            message.setContent(null); // no text
+            message.setType(ChatMessage.MessageType.IMAGE);
+            message.setRoomId(roomId);
+            message.setTimestamp(System.currentTimeMillis());
 
-            // Return the image ID as URL
-            String imageUrl = "/api/images/" + savedImage.getId();
+            messageRepository.save(message);
 
-            System.out.println("Image saved to MongoDB: " + imageUrl);
+            // 6️⃣ Notify WebSocket subscribers (real-time update)
+            messagingTemplate.convertAndSend("/topic/messages", message);
 
+            // 7️⃣ Return URL to frontend
             return ResponseEntity.ok(imageUrl);
 
         } catch (IOException e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Upload failed: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<byte[]> getImage(@PathVariable String id) {
-        try {
-            Image image = imageRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Image not found"));
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(image.getContentType()));
-            headers.setContentLength(image.getData().length);
-
-            return new ResponseEntity<>(image.getData(), headers, HttpStatus.OK);
-
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+                    .body("Error uploading image: " + e.getMessage());
         }
     }
 }
