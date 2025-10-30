@@ -1,0 +1,121 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f4f6fb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+    animation: fadeIn 0.8s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(25px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-container {
+    background: #fff;
+    width: 380px;
+    padding: 35px 30px;
+    border-radius: 18px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.auth-header {
+    background-color: #006aff;
+    color: white;
+    padding: 15px;
+    border-radius: 12px;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 8px rgba(0,106,255,0.2);
+}
+
+.input-container {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+input[type="text"], input[type="password"] {
+    width: 90%;
+    padding: 12px 40px 12px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    outline: none;
+    font-size: 1rem;
+    transition: 0.3s;
+}
+
+input:focus {
+    border-color: #006aff;
+    box-shadow: 0 0 5px rgba(0,106,255,0.2);
+}
+
+.toggle-password {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #999;
+    transition: color 0.3s;
+}
+
+.toggle-password:hover {
+    color: #006aff;
+}
+
+button {
+    width: 95%;
+    padding: 12px;
+    margin-top: 15px;
+    background-color: #006aff;
+    color: white;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s;
+}
+
+button:hover {
+    background-color: #0052cc;
+    transform: scale(1.02);
+}
+
+a {
+    display: inline-block;
+    margin-top: 15px;
+    color: #006aff;
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* ✅ Responsive Design */
+@media (max-width: 480px) {
+    .auth-container {
+        width: 90%;
+        padding: 25px 20px;
+    }
+
+    .auth-header {
+        font-size: 1.1rem;
+    }
+
+    input[type="text"], input[type="password"] {
+        width: 100%;
+    }
+
+    button {
+        width: 100%;
+    }
+}

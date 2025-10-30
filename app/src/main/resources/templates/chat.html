@@ -31,8 +31,12 @@
 <body>
 <div class="container py-5">
     <div class="chat-card bg-white">
+        <div class="p-3 border-bottom">
+            <h6>🟢 Online Users</h6>
+            <ul id="online-users" class="list-unstyled small mb-0"></ul>
+        </div>
         <div class="chat-header">
-            <h4 class="mb-2">💬 Real-Time Chat (Rooms + Images)</h4>
+            <h4 class="mb-2">💬 Real-Time Chat </h4>
             <div class="input-group input-group-sm">
                 <select id="roomSelect" class="form-select">
                     <option value="" disabled selected>-- Select Chat Room --</option>
@@ -107,6 +111,12 @@
         stompClient.subscribe(`/topic/messages/${roomId}`, function(message) {
           showMessage(JSON.parse(message.body));
         });
+        // ✅ Subscribe to online users updates
+        stompClient.subscribe("/topic/onlineUsers", (message) => {
+          const users = JSON.parse(message.body);
+          updateOnlineUserList(users);
+});
+
       });
     }
 
@@ -127,6 +137,17 @@
       chat.appendChild(msgElem);
       chat.scrollTop = chat.scrollHeight;
     }
+
+    function updateOnlineUserList(users) {
+      const list = document.getElementById("online-users");
+      list.innerHTML = "";
+      users.forEach(user => {
+        const li = document.createElement("li");
+        li.textContent = user;
+        list.appendChild(li);
+      });
+    }
+
 
     function sendMessage() {
       const sender = document.getElementById("senderInput").value.trim();

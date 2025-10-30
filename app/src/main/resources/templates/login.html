@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Login | Real-Time Chat</title>
+    <link rel="stylesheet" th:href="@{/css/auth-style.css}">
+</head>
+<body>
+<div class="auth-container">
+    <div class="auth-header">🔒 Login</div>
+    <form th:action="@{/login}" method="post">
+        <div class="input-container">
+            <input type="text" name="username" placeholder="Enter username" required>
+        </div>
+        <div class="input-container">
+            <input type="password" name="password" id="password" placeholder="Enter password" required>
+            <span class="toggle-password" onclick="togglePassword()">👁️</span>
+        </div>
+        <button type="submit">Login</button>
+    </form>
+    <a th:href="@{/register}">Create a new account</a>
+</div>
+
+<script>
+    function togglePassword() {
+        const password = document.getElementById('password');
+        const icon = event.target;
+        if (password.type === 'password') {
+            password.type = 'text';
+            icon.textContent = '🙈';
+        } else {
+            password.type = 'password';
+            icon.textContent = '👁️';
+        }
+    }
+</script>
+</body>
+</html>
